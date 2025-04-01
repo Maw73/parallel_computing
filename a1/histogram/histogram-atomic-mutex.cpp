@@ -4,7 +4,7 @@
 #include <chrono>
 #include <numeric>
 #include <thread>
-#include <atomic>
+#include <mutex>
 
 #include "helper.hpp"
 
@@ -12,14 +12,14 @@ using namespace std;
 std::mutex m;
 
 struct histogram {
-	std::vector<std::atomic<int>> data;
+	vector<int> data;
 	
 	histogram(int count) : data(count) { }
 
 	void add(int i) {
-		// m.lock();
+		m.lock();
 		++data[i];
-		// m.unlock();
+		m.unlock();
 	}
 
 	int& get(int i)	{
