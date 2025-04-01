@@ -72,9 +72,11 @@ int main(int argc, char **argv)
 
 	auto t1 = chrono::high_resolution_clock::now();
 
-	for (int i=0; i<num_threads; i++){
+	for (int i=0; i<num_threads-i; i++){
 		threads.push_back(thread(worker, sample_per_thread, std::ref(hists[i]), num_bins));
 	}
+
+	threads.push_back(thread(worker, remaining_samples, std::ref(hists[num_threads-1]), num_bins));
 
 	for(auto& thread : threads) {
 		thread.join();
