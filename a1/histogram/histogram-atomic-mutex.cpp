@@ -17,9 +17,9 @@ struct histogram {
 	histogram(int count) : data(count) { }
 
 	void add(int i) {
-		// m.lock();
+		m.lock();
 		++data[i];
-		// m.unlock();
+		m.unlock();
 	}
 
 	int& get(int i)	{
