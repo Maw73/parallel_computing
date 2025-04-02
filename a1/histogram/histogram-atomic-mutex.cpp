@@ -17,9 +17,9 @@ struct histogram {
 	histogram(int count) : data(count) { }
 
 	void add(int i) {
-		m.lock();
+		// m.lock();
 		++data[i];
-		m.unlock();
+		// m.unlock();
 	}
 
 	int& get(int i)	{
@@ -50,16 +50,17 @@ void worker(int sample_count, histogram& h, int num_bins)
 
 int main(int argc, char **argv)
 {
-	int num_bins = 10;
-	int sample_count = 30000000;
-	vector<thread> threads;
+    int num_bins = 10;
+    int sample_count = 30000000;
+    vector<thread> threads;
 
-	int num_threads = std::thread::hardware_concurrency();
-	int print_level = 3; // 0: exec info + histogram total, 1: + histogram bins, 2: +exec time, 3: +bin info
-	int sample_per_thread = sample_count/num_threads;
-	int remaining_samples = sample_count - sample_per_thread*(num_threads-1);
-	// int remaining_samples = sample_count % num_threads;
-	parse_args(argc, argv, num_threads, num_bins, sample_count, print_level);
+    int num_threads = std::thread::hardware_concurrency();
+    int print_level = 3; // 0: exec info + histogram total, 1: + histogram bins, 2: +exec time, 3: +bin info
+
+    parse_args(argc, argv, num_threads, num_bins, sample_count, print_level);
+
+    int sample_per_thread = sample_count / num_threads;
+    int remaining_samples = sample_count - sample_per_thread * (num_threads - 1);
 	
 	histogram h(num_bins);
 
