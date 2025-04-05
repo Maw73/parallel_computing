@@ -14,7 +14,7 @@ class Mandelbrot {
 
     int max_iterations = 2048;
 
-    atomic<int> next_row;
+    atomic<int> row;
 
 public:
     Mandelbrot(int rows, int cols, int max_iterations): image(rows, cols, {255, 255, 255}), max_iterations(max_iterations) { }
@@ -31,11 +31,12 @@ public:
         {
             threads[i].join();
         }
-        
     }
 
     void worker(int num_threads, int thread_id)
     {
+        // first startegy: assign to equal parts of the image height
+        // however, the workload was very unbalanced
         // double h_per_th = image.height/num_threads;
         // double from = thread_id*h_per_th;
         // double to = (thread_id+1)*h_per_th;
@@ -45,9 +46,12 @@ public:
 
         // for (int y = 0; y < image.height; ++y)
         // for (int y = from; y < to; ++y) 
+        // iterate through each row until the end of the rows are reached
         while(true)
         {
-            int y = next_row.fetch_add(1);
+            // next available row index
+            int y = row.fetch_add(1);
+            // end of the image
             if (y >= image.height) break; //all rows are processed
 
             for (int x = 0; x < image.width; ++x)
@@ -63,7 +67,6 @@ public:
                 }
             }
         }
-        std::cout << "thr id: " << thread_id <<" - incr: " << incr << endl;
     }
 
     // Test if point c belongs to the Mandelbrot set
