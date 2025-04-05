@@ -1,8 +1,8 @@
-
 #include <vector>
 #include <complex>
 #include <numeric>
 #include <thread>
+#include <cmath>
 
 #include "pixel.hpp"
 #include "image.hpp"
@@ -14,10 +14,7 @@ class Mandelbrot {
 
     int max_iterations = 2048;
 
-//1st thread 0-127 x 0:95
-//2nd thread 128-255 x 96:191
-//3rd thread 256-383 x 192:287
-//4th thread 384-511 x 288:383
+    atomic<int> next_row;
 
 public:
     Mandelbrot(int rows, int cols, int max_iterations): image(rows, cols, {255, 255, 255}), max_iterations(max_iterations) { }
@@ -39,16 +36,21 @@ public:
 
     void worker(int num_threads, int thread_id)
     {
-        double h = image.height/num_threads;
-        double from = thread_id*h;
-        double to = (thread_id+1)*h;
+        // double h_per_th = image.height/num_threads;
+        // double from = thread_id*h_per_th;
+        // double to = (thread_id+1)*h_per_th;
+        double incr = 0;
 
         unsigned char color = (254*(thread_id+1))/num_threads % 254; // use for your parallel code
 
-        //for (int y = 0; y < image.height; ++y)
-        for (int y = from; y < to; ++y) 
+        // for (int y = 0; y < image.height; ++y)
+        // for (int y = from; y < to; ++y) 
+        while(true)
         {
-            for (int x = 0; x < image.width; ++x) 
+            int y = next_row.fetch_add(1);
+            if (y >= image.height) break; //all rows are processed
+
+            for (int x = 0; x < image.width; ++x)
             {
                 double dx = ((double)x / image.width - 0.75) * 2.0;
                 double dy = ((double)y / image.height - 0.5) * 2.0;
@@ -57,9 +59,11 @@ public:
 
                 if (check_pixel(c)) { 
                     image[y][x] = {color, color, color}; // {0, 0, 0} - black for a pixel inside of the mandelbrot set
+                    incr++;
                 }
             }
         }
+        std::cout << "thr id: " << thread_id <<" - incr: " << incr << endl;
     }
 
     // Test if point c belongs to the Mandelbrot set
