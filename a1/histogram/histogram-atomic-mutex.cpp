@@ -17,6 +17,7 @@ struct histogram {
 	histogram(int count) : data(count) { }
 
 	void add(int i) {
+		// locking and unlocking the resource that is common to all threads
 		m.lock();
 		++data[i];
 		m.unlock();
@@ -59,19 +60,24 @@ int main(int argc, char **argv)
 
     parse_args(argc, argv, num_threads, num_bins, sample_count, print_level);
 
+	// creating a variable to hold the number of samples per thread
     int sample_per_thread = sample_count / num_threads;
+	// and the number of remaining samples for the last thread
     int remaining_samples = sample_count - sample_per_thread * (num_threads - 1);
 	
 	histogram h(num_bins);
 
 	auto t1 = chrono::high_resolution_clock::now();
 
+	// creating the first n-1 threads
 	for (int i=0; i<num_threads-1; i++){
 		threads.push_back(thread(worker, sample_per_thread, std::ref(h), num_bins));
 	}
 
+	// creating the last thread
 	threads.push_back(thread(worker, remaining_samples, std::ref(h), num_bins));
 
+	// joining the threads to ensure they finish before the main thread
 	for(auto& thread : threads) {
 		thread.join();
 	}

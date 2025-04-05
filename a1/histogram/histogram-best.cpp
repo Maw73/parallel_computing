@@ -22,12 +22,10 @@ struct histogram {
 		return data[i];
 	}
 
-    void append(const histogram& other) {
-        if (data.size() != other.data.size()) {
-            throw std::invalid_argument("Histograms must have the same size to append.");
-        }
+    // method to merge histograms
+    void append(const histogram& histo_thread) {
         for (size_t i = 0; i < data.size(); ++i) {
-            data[i] += other.data[i];
+            data[i] += histo_thread.data[i];
         }
     }
 
@@ -42,16 +40,17 @@ struct histogram {
 
 
 void worker(int sample_count, histogram& h, int num_bins) {
-    thread_local histogram h_th(num_bins);  // private histogram for each thread
+    // creating a thread-local generator to ensure each thread has its own instance
+    thread_local histogram h_th(num_bins);
 
-		long count = 0.0;
+	long count = 0.0;
 
     generator gen(num_bins);
     
     while (sample_count--) {
         int next = gen();
         h_th.add(next);
-				count++;
+		count++;
     }
 
     // merging the local thread histograms into the global histogram
@@ -69,20 +68,24 @@ int main(int argc, char **argv)
 
     parse_args(argc, argv, num_threads, num_bins, sample_count, print_level);
 
+    // creating a variable to hold the number of samples per thread
     int sample_per_thread = sample_count / num_threads;
+    // and the number of remaining samples for the last thread
     int remaining_samples = sample_count - sample_per_thread * (num_threads - 1);
 
     histogram h(num_bins);  // global histogram
 
     auto t1 = chrono::high_resolution_clock::now();
 
-
+    // creating the first n-1 threads
     for (int i = 0; i < num_threads - 1; i++) {
         threads.push_back(thread(worker, sample_per_thread, std::ref(h), num_bins));
     }
 
+    // creating the last thread
     threads.push_back(thread(worker, remaining_samples, std::ref(h), num_bins));
 
+    // joining the threads to ensure they finish before the main thread
     for (auto& thread : threads) {
         thread.join();
     }
