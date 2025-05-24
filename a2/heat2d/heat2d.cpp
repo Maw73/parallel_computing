@@ -193,9 +193,12 @@ int main(int argc, char **argv)
         offset += receive_counts[i];
     }
 
+    double gather_time_start = MPI_Wtime();
 
-    MPI_Gatherv(U.data[0] + N, sendcount, MPI_DOUBLE, bigU.data[0], receive_counts, receive_displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(&U[1][0], sendcount, MPI_DOUBLE, &bigU[0][0], receive_counts, receive_displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+    double gather_time_end = MPI_Wtime();
+    double gather_elapsed = gather_time_end - gather_time_start;
 
     // Print time measurements
     cout << "Elapsed time: ";
@@ -204,14 +207,16 @@ int main(int argc, char **argv)
     cout << " seconds, iterations: " << iteration_count << endl;
 
     // Verification (required for MPI)
-    if ( verify ) {
+    if ( rank==0 & verify ) {
+        cout << "Gather time: " << std::fixed << std::setprecision(4) << gather_elapsed << " seconds\n";
+
         Mat U_sequential(M, N); // init another matrix for the verification
 
         int iteration_count_seq = 0;
         heat2d_sequential(U_sequential, max_iterations, epsilon, iteration_count_seq);
 
         // Here we need both results - from the sequential (U_sequential) and also from the OpenMP/MPI version, then we compare them with the compare(...) function
-        cout << "Verification: " << ( U.compare(U_sequential) && iteration_count == iteration_count_seq ? "OK" : "NOT OK") << std::endl;
+        cout << "Verification: " << ( bigU.compare(U_sequential) && iteration_count == iteration_count_seq ? "OK" : "NOT OK") << std::endl;
     }
 
     // MPI: do not forget to call MPI_Finalize()
