@@ -106,8 +106,6 @@ int main(int argc, char **argv)
             MPI_Isend(&U[rows_per_proc][0], N, MPI_DOUBLE, rank+1, TAG_UP, MPI_COMM_WORLD, &req_send_down);
             //receiving on the last row of P0 from the second row of P1
             MPI_Irecv(&U[rows_per_proc + 1][0], N, MPI_DOUBLE, rank+1, TAG_DOWN, MPI_COMM_WORLD, &req_receive_down);
-            MPI_Wait(&req_send_down, MPI_STATUS_IGNORE);
-            MPI_Wait(&req_receive_down, MPI_STATUS_IGNORE);
         }
         else if(rank==numprocs-1){
             start = 1;
@@ -116,38 +114,21 @@ int main(int argc, char **argv)
             MPI_Isend(&U[1][0], N, MPI_DOUBLE, rank-1, TAG_DOWN, MPI_COMM_WORLD, &req_send_up);
             //receiving on the first row of P_last from the second to last row of P_last-1
             MPI_Irecv(&U[0][0], N, MPI_DOUBLE, rank-1, TAG_UP, MPI_COMM_WORLD, &req_receive_up);
-            MPI_Wait(&req_send_up, MPI_STATUS_IGNORE);
-            MPI_Wait(&req_receive_up, MPI_STATUS_IGNORE);
         }
         else{
             //sending from the second row of P_current to the last row of P_previous
             MPI_Isend(&U[1][0], N, MPI_DOUBLE, rank-1, TAG_DOWN, MPI_COMM_WORLD, &req_send_up);
             //receiving on the first row of P_current from the second to last row of P_previous
             MPI_Irecv(&U[0][0], N, MPI_DOUBLE, rank-1, TAG_UP, MPI_COMM_WORLD, &req_receive_up);
-            MPI_Wait(&req_send_up, MPI_STATUS_IGNORE);
-            MPI_Wait(&req_receive_up, MPI_STATUS_IGNORE);
 
             //sending from the second to last row of P-current to the first row of P_next
             MPI_Isend(&U[rows_per_proc][0], N, MPI_DOUBLE, rank+1, TAG_UP, MPI_COMM_WORLD, &req_send_down);
             //receiving on the last row of P_current from the second row of P_next
             MPI_Irecv(&U[rows_per_proc + 1][0], N, MPI_DOUBLE, rank+1, TAG_DOWN, MPI_COMM_WORLD, &req_receive_down);
-            MPI_Wait(&req_send_down, MPI_STATUS_IGNORE);
-            MPI_Wait(&req_receive_down, MPI_STATUS_IGNORE);
         }
 
-
-        // Compute new values (but not on boundary)
-        // MPI: based on your process you may need to start and stop at the different row index
-        // for (i = 1; i < M - 1; ++i)
-        // {
-        //     for (j = 1; j < N - 1; ++j)
-        //     {
-        //         W[i][j] = (U[i][j + 1] + U[i][j - 1] + U[i + 1][j] + U[i - 1][j]) * 0.25;
-        //         diffnorm += (W[i][j] - U[i][j]) * (W[i][j] - U[i][j]);
-        //     }
-        // }
-
-        for (i = start; i < stop; ++i)
+        //Computing only the interior row which don't depend on the ghost ones
+        for (i = start+1; i < stop-1; ++i)
         {
             for (j = 1; j < N - 1; ++j)
             {
@@ -156,6 +137,33 @@ int main(int argc, char **argv)
             }
         }
 
+        //Waiting for the other rows entries to be received on the ghost rows
+        if (rank == 0) {
+            MPI_Wait(&req_send_down, MPI_STATUS_IGNORE);
+            MPI_Wait(&req_receive_down, MPI_STATUS_IGNORE);
+        } else if (rank == numprocs - 1) {
+            MPI_Wait(&req_send_up, MPI_STATUS_IGNORE);
+            MPI_Wait(&req_receive_up, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Wait(&req_send_up, MPI_STATUS_IGNORE);
+            MPI_Wait(&req_receive_up, MPI_STATUS_IGNORE);
+            MPI_Wait(&req_send_down, MPI_STATUS_IGNORE);
+            MPI_Wait(&req_receive_down, MPI_STATUS_IGNORE);
+        }
+
+        //Computing the rows that were left, the ones which depend on the ghost rows
+        i = start;
+        for (j = 1; j < N - 1; ++j) {
+            W[i][j] = 0.25 * (U[i][j + 1] + U[i][j - 1] + U[i + 1][j] + U[i - 1][j]);
+            diffnorm += (W[i][j] - U[i][j]) * (W[i][j] - U[i][j]);
+        }
+
+        i = stop - 1;
+        for (j = 1; j < N - 1; ++j) {
+            W[i][j] = 0.25 * (U[i][j + 1] + U[i][j - 1] + U[i + 1][j] + U[i - 1][j]);
+            diffnorm += (W[i][j] - U[i][j]) * (W[i][j] - U[i][j]);
+        }
+        
         // Only transfer the interior points
         // MPI: based on your process you may need to start and stop at the different row index
         for (i = 1; i < rows_per_proc+1; ++i)
