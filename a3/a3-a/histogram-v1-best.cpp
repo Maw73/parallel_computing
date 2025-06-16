@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <random>
+#include <omp.h>
 
 using namespace std;
 
@@ -21,7 +22,7 @@ public:
 };
 
 struct histogram {
-	int bins, *data;
+	int bins, *data, *local_data;
 
 	histogram(int count) : bins(count) {
 		// allocate memory for histogram
@@ -37,15 +38,32 @@ struct histogram {
 
 	void populate(int sample_size) {
 		// initialize random number generator
-		generator number_generator(bins);
+		#pragma omp parallel
+		{
+			generator number_generator(bins);
+			int* local_data = new int[bins];
 
-		for (int i = 0; i < sample_size; i++) {
-			// generate random number
-			int random_number = number_generator();
+			//initialiting local_data with 0
+			for (int i = 0; i < bins; i++) local_data[i] = 0;
 
-			// update corresponding bin
-			data[random_number]++;
+			#pragma omp for
+			for (int i = 0; i < sample_size; i++) {
+				// generate random number
+				int random_number = number_generator();
+
+				// update corresponding bin
+				local_data[random_number]++;
+			}
+
+			for (int i=0; i < bins; i++){
+				#pragma omp critical 
+				data[i] += local_data[i];
+			}
 		}
+
+		//freeing the memory
+		delete[] local_data;
+
 	}
 
 	void print() {
@@ -56,6 +74,7 @@ struct histogram {
 		}
 		std::cout << "total: " << total << std::endl;
 	}
+
 };
 
 int main(int argc, char **argv)
