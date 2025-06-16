@@ -60,10 +60,6 @@ struct histogram {
 				data[i] += local_data[i];
 			}
 		}
-
-		//freeing the memory
-		delete[] local_data;
-
 	}
 
 	void print() {
