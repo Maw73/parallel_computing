@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <random>
+#include <omp.h>
 
 struct generator {
 private:
@@ -14,7 +15,7 @@ public:
 
 		// Start with 2 and increment by 1 to check each number
 		for (int p = 2; p <= n; ++p) {
-			// While i divides n, print i and divide n
+			// While p divides n, print p and divide n
 			while (n % p == 0) {
 				n = n / p;
 				num_factors++;
@@ -40,15 +41,21 @@ struct histogram {
 	~histogram() {free(data); }
 
 	void populate(int sample_size) {
-		// initialize prime factors generator
-		generator number_generator(bins);
 
-		for (int i = 2; i < sample_size; i++) {
-			// count number of prime factors for integer i
-			int number_of_primes = number_generator(i);
+		#pragma omp parallel
+		{
+			// initialize prime factors generator
+			generator number_generator(bins);
+			
+			#pragma omp for
+			for (int i = 2; i < sample_size; i++) {
+				// count number of prime factors for integer i
+				int number_of_primes = number_generator(i);
 
-			// update corresponding bin
-			data[number_of_primes]++;
+				#pragma omp critical
+				// update corresponding bin
+				data[number_of_primes]++;
+			}
 		}
 	}
 
