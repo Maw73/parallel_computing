@@ -46,29 +46,15 @@ struct histogram {
 		{
 			// initialize prime factors generator
 			generator number_generator(bins);
-
-			//creating an arrays of bins for each thread
-			int* local_data = new int[bins];
-
-			//initialiting local_data with 0
-			for (int i = 0; i < bins; i++) local_data[i] = 0;
 			
-			#pragma omp for
+			#pragma omp for schedule(dynamic)
 			for (int i = 2; i < sample_size; i++) {
 				// count number of prime factors for integer i
 				int number_of_primes = number_generator(i);
 
-				// each thread will update the corresponding bin of their array
-				local_data[number_of_primes]++;
-			}
-
-			// loop for adding the data from each local thread to the final data array
-			
-			#pragma omp critical
-			for (int i=0; i < bins; i++){
-				// omp critical because some bins have the risk of being updated simultaneously 
-				 
-				data[i] += local_data[i];
+				#pragma omp critical
+				// update corresponding bin
+				data[number_of_primes]++;
 			}
 		}
 	}
