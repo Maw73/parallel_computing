@@ -64,9 +64,10 @@ struct histogram {
 
 			// loop for adding the data from each local thread to the final data array
 			
+			#pragma omp critical
 			for (int i=0; i < bins; i++){
 				// omp critical because some bins have the risk of being updated simultaneously 
-				#pragma omp critical 
+				 
 				data[i] += local_data[i];
 			}
 		}
